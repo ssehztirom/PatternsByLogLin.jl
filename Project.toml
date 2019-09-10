@@ -1,0 +1,8 @@
+name = "PatternsByLogLin"
+uuid = "4b7e11da-2cb0-11e9-162e-7955b596387e"
+authors = ["binderh "]
+version = "0.1.0"
+
+[deps]
+LogLinearModels = "a6fe36b8-2c63-11e9-27e7-4748cfc3a0e4"
+MultivariateStats = "6f286f6a-111f-5878-ab1e-185364afe411"
