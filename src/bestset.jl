@@ -67,24 +67,25 @@ function expandvarset(startset,x,h=nothing,significance=1.0)
 	      end
 		# if (sum(gdiff_null.>=gdiff[i]) / 100) .<= significance
 		pval = (sum(gdiff_null.>=bestdiff) / 100)
+		end
 	end
    pval, bestdiff, [startset...,bestpartner]
 end
 
-function bestpair(x,h=nothing)
+function bestpair(x,h=nothing,significance=1.0)
     p = size(x.data,2)
 
     bestpair = Int[]
     bestdiff = 0.0
     for i=1:p
-        curdiff, curpair = expandvarset([i],x,h)
+        pval, curdiff, curpair = expandvarset([i],x,h,significance = significance)
         if curpair == [] || curdiff > bestdiff
             bestpair = curpair
             bestdiff = curdiff
         end
     end
 
-    bestdiff, bestpair
+    pval, bestdiff, bestpair
 end
 
 function bestset(setsize::Int,x::Array{Float64,2}; startsize=2,verbose=false,significance=1.0)
@@ -107,7 +108,7 @@ function bestset(setsize::Int,x::LogLinearModels.LevelData,h=nothing;
    end
 
    if startsize == 2
-      gdiff[1], curset = bestpair(x,h)
+      pvals[1], gdiff[1], curset = bestpair(x,h,significance=significance)
    else
       curset = Int[]
    end
