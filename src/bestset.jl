@@ -77,6 +77,7 @@ function bestpair(x,h=nothing,significance=1.0)
 
     bestpair = Int[]
     bestdiff = 0.0
+	 pval = 1.0
     for i=1:p
         pval, curdiff, curpair = expandvarset([i],x,h,significance = significance)
         if curpair == [] || curdiff > bestdiff
