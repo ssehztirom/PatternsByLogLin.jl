@@ -1,4 +1,4 @@
-function expandvarset(startset,x,h=nothing)
+function expandvarset(startset,x,h=nothing,significance=1.0)
    newsize = length(startset)+1
 
    varno = (h == nothing) ? newsize : newsize + 1
@@ -17,7 +17,7 @@ function expandvarset(startset,x,h=nothing)
 
    bestpartner = -1
    bestdiff = 0.0
-
+	pval = 1.0
    for i=1:size(x.data,2)
       if i in startset
          continue
@@ -37,6 +37,7 @@ function expandvarset(startset,x,h=nothing)
 
          curdiff = LogLinearModels.gsquare(freqval,
                      LogLinearModels.ipf(freqval,m0constr,maxit=100))
+         # println(curdiff)
 
          if bestpartner == -1 || curdiff > bestdiff
             bestpartner = i
@@ -44,8 +45,30 @@ function expandvarset(startset,x,h=nothing)
          end
       end
    end
+	
+	if significance != 1.0
+		gdiff_null = fill(0.0,100)
+		for j = 1:length(gdiff_null)
+			curx.data[:,varno] .= shuffle(x.data[:,bestpartner])
+   		curx.levelno[varno] = x.levelno[i]
+      	curset = [startset...,bestpartner]
 
-   bestdiff, [startset...,bestpartner]
+	      for j=1:(h == nothing ? 1 : size(h.data,2))
+	         if h != nothing
+	            curx.data[:,1] .= h.data[:,j]
+	            curx.levelno[1] = h.levelno[j]
+	         end
+	
+	         freqval = LogLinearModels.freqtab(curx,fillzeros=true)
+	
+	         curdiff = LogLinearModels.gsquare(freqval,
+	                     LogLinearModels.ipf(freqval,m0constr,maxit=100))
+				gdiff_null[j] = curdiff
+	      end
+		# if (sum(gdiff_null.>=gdiff[i]) / 100) .<= significance
+		pval = (sum(gdiff_null.>=bestdiff) / 100)
+	end
+   pval, bestdiff, [startset...,bestpartner]
 end
 
 function bestpair(x,h=nothing)
@@ -64,21 +87,21 @@ function bestpair(x,h=nothing)
     bestdiff, bestpair
 end
 
-function bestset(setsize::Int,x::Array{Float64,2}; startsize=2,verbose=false)
-   bestset(setsize,LogLinearModels.LevelData(x),startsize=startsize,verbose=verbose)
+function bestset(setsize::Int,x::Array{Float64,2}; startsize=2,verbose=false,significance=1.0)
+   bestset(setsize,LogLinearModels.LevelData(x),startsize=startsize,verbose=verbose,significance=significance)
 end
 
 function bestset(setsize::Int,x::Array{Float64,2},h::Array{Float64,2};
-                 startsize=1,verbose=false)
+                 startsize=1,verbose=false,significance=.05)
    bestset(setsize,LogLinearModels.LevelData(x),LogLinearModels.LevelData(h),
-           startsize=startsize,verbose=verbose)
+           startsize=startsize,verbose=verbose,significance=significance)
 end
 
 function bestset(setsize::Int,x::LogLinearModels.LevelData,h=nothing;
-                 startsize=1,verbose=false)
+                 startsize=1,verbose=false,significance=significance)
 
    gdiff = Vector{Float64}(undef,setsize - (startsize == 2 ? 1 : 0))
-
+	pvals = Vector{Float64}(undef,setsize - (startsize == 2 ? 1 : 0))
    if h == nothing
       startsize = 2
    end
@@ -94,10 +117,12 @@ function bestset(setsize::Int,x::LogLinearModels.LevelData,h=nothing;
    end
 
    for i=(startsize == 2 ? 2 : 1):(startsize == 2 ? setsize - 1 : setsize)
-      gdiff[i], curset = expandvarset(curset,x,h)
+      pvals[i], gdiff[i], curset = expandvarset(curset,x,h,significance)
+		
       if verbose
          println(curset)
       end
    end
-   curset
+   println("d")
+   return gdiff,curset
 end
