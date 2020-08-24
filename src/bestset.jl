@@ -22,10 +22,11 @@ function expandvarset(startset,x,h=nothing,significance=1.0)
       if i in startset
          continue
       end
-
+      # Here the newly to be added variable is added to the data for evaluation
       curx.data[:,varno] .= x.data[:,i]
       curx.levelno[varno] = x.levelno[i]
       curset = [startset...,i]
+      
 
       for j=1:(h == nothing ? 1 : size(h.data,2))
          if h != nothing
@@ -47,10 +48,11 @@ function expandvarset(startset,x,h=nothing,significance=1.0)
    end
 	
 	if significance != 1.0
+		println("permuting!")
 		gdiff_null = fill(0.0,100)
-		for j = 1:length(gdiff_null)
+		for permutation = 1:length(gdiff_null)
 			curx.data[:,varno] .= shuffle(x.data[:,bestpartner])
-   		curx.levelno[varno] = x.levelno[i]
+   		curx.levelno[varno] = x.levelno[bestpartner]
       	curset = [startset...,bestpartner]
 
 	      for j=1:(h == nothing ? 1 : size(h.data,2))
@@ -63,10 +65,11 @@ function expandvarset(startset,x,h=nothing,significance=1.0)
 	
 	         curdiff = LogLinearModels.gsquare(freqval,
 	                     LogLinearModels.ipf(freqval,m0constr,maxit=100))
-				gdiff_null[j] = curdiff
+				gdiff_null[permutation] = curdiff
 	      end
 		# if (sum(gdiff_null.>=gdiff[i]) / 100) .<= significance
-		pval = (sum(gdiff_null.>=bestdiff) / 100)
+		# println(gdiff_null)
+		pval = (sum(gdiff_null.>=bestdiff) / length(gdiff_null))
 		end
 	end
    pval, bestdiff, [startset...,bestpartner]
@@ -77,16 +80,17 @@ function bestpair(x,h=nothing,significance=1.0)
 
     bestpair = Int[]
     bestdiff = 0.0
-	 pval = 1.0
+	 bestpval = 1.0
     for i=1:p
-        pval, curdiff, curpair = expandvarset([i],x,h,significance = significance)
+        pval, curdiff, curpair = expandvarset([i],x,h,significance)
         if curpair == [] || curdiff > bestdiff
             bestpair = curpair
             bestdiff = curdiff
+				bestpval = pval
         end
     end
 
-    pval, bestdiff, bestpair
+    bestpval, bestdiff, bestpair
 end
 
 function bestset(setsize::Int,x::Array{Float64,2}; startsize=2,verbose=false,significance=1.0)
@@ -94,7 +98,7 @@ function bestset(setsize::Int,x::Array{Float64,2}; startsize=2,verbose=false,sig
 end
 
 function bestset(setsize::Int,x::Array{Float64,2},h::Array{Float64,2};
-                 startsize=1,verbose=false,significance=.05)
+                 startsize=1,verbose=false,significance=1.0)
    bestset(setsize,LogLinearModels.LevelData(x),LogLinearModels.LevelData(h),
            startsize=startsize,verbose=verbose,significance=significance)
 end
@@ -109,8 +113,11 @@ function bestset(setsize::Int,x::LogLinearModels.LevelData,h=nothing;
    end
 
    if startsize == 2
-      pvals[1], gdiff[1], curset = bestpair(x,h,significance=significance)
+      println("bestpair")
+      pvals[1], gdiff[1], curset = bestpair(x,h,significance)
+      #  curset = Int[]
    else
+      println("directly expandvarset")
       curset = Int[]
    end
 
@@ -126,5 +133,5 @@ function bestset(setsize::Int,x::LogLinearModels.LevelData,h=nothing;
       end
    end
    println("d")
-   return gdiff,curset
+   return pvals,gdiff,curset
 end
